@@ -1,0 +1,335 @@
+<?php
+/*
+Plugin Name: Exclusive Content Scheduler
+Plugin URI: https://github.com/jeffmillies/wp-exclusive-content-scheduler
+Description: Wordpress Plugin to hide content based on a schedule. A timer is placed in the body showing time until post viewed and also time remaining on post.
+Author: Jeff Millies
+Version: 1.0
+Author URI: https://github.com/jeffmillies
+License: GPL2
+*/
+
+/*
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2, as
+published by the Free Software Foundation.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+*/
+
+class ExclusiveContent
+{
+
+    /** Quick Reference array
+     * @var array
+     */
+    private $unitNames = array(
+        'daily' => 'days',
+        'weekly' => 'weeks',
+        'monthly' => 'months',
+        'yearly' => 'years'
+    );
+
+    /** Valid field names to be used for this plugin
+     * @var array
+     */
+    private $fields = array(
+        'ec_enable',
+        'ec_repeat',
+        'ec_repeat_int',
+        'ec_repeat_on',
+        'ec_start_on',
+        'ec_end_on',
+        'ec_duration',
+        'ec_duration_type',
+        'ec_start_time',
+        'ec_start_time_ampm',
+        'ec_start_time_hr',
+        'ec_start_time_min',
+        'ec_repeat_on_chk_su',
+        'ec_repeat_on_chk_mo',
+        'ec_repeat_on_chk_tu',
+        'ec_repeat_on_chk_we',
+        'ec_repeat_on_chk_th',
+        'ec_repeat_on_chk_fr',
+        'ec_repeat_on_chk_sa',
+        'ec_time_zone',
+        'ec_date_format',
+        'ec_meta_box_nonce'
+    );
+
+    /** Holder for assigned variables for templates
+     * @var
+     */
+    private $assigned;
+
+    /** Get everything ready
+     *
+     */
+    function __construct()
+    {
+        $this->add_filters();
+        $this->add_actions();
+        $this->assign('unitNames', $this->unitNames);
+        $this->assign('baseDir', plugin_dir_path(__FILE__));
+        $this->assign('baseUrl', plugins_url() . '/exclusive-content-scheduler/');
+    }
+
+    /** Initiate filter hooks that are going to be used
+     *
+     */
+    private function add_filters()
+    {
+        add_filter('the_content', array($this, 'filter_content'));
+    }
+
+    /** Initial action hooks that are going to be used
+     *
+     */
+    private function add_actions()
+    {
+        add_action('add_meta_boxes', array($this, 'meta_box'));
+        add_action('save_post', array($this, 'save_post'));
+    }
+
+    /** Making the values easier to use
+     * @param $postId
+     * @return array
+     */
+    private function get_values($postId)
+    {
+        $clean = array();
+        $values = get_post_custom($postId);
+        foreach ($values as $field => $value) {
+            if (in_array($field, $this->fields))
+                $clean[$field] = $value[0];
+        }
+        return $clean;
+    }
+
+    /** See if we need to add in a timer and block the content of a page or not
+     * @param $content
+     * @return string
+     */
+    public function filter_content($content)
+    {
+        global $post;
+        $values = $this->get_values($post->ID);
+        if ($values['ec_enable'] == 'on') {
+            $check = $this->checkSchedule($values);
+            $this->assign('check', $check);
+            $this->assign('val', $values);
+            $template = $this->render('timer');
+            if ($check['until'] < 0 && $check['remaining'] > 0 || $check['show_post']) {
+                $content = $template . $content;
+            } else {
+                $content = $template;
+            }
+        }
+        return $content;
+    }
+
+    /** Setup call back to generate the meta box
+     *
+     */
+    public function meta_box()
+    {
+        add_meta_box(
+            'exclusive-content-meta-box',
+            __('Schedule Content'),
+            array($this, 'meta_box_template'),
+            'page',
+            'side',
+            'low'
+        );
+    }
+
+    /** Save the content from the meta box when posting the save form.
+     * @param $post_id
+     */
+    public function save_post($post_id)
+    {
+        // Do nothing if auto saving
+        if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) return;
+
+        // Check to see if nonce is there for the form
+        if (!isset($_POST['ec_meta_box_nonce']) || !wp_verify_nonce($_POST['ec_meta_box_nonce'], 'my_meta_box_nonce')) return;
+
+        // Make sure permissions are correct
+        if (!current_user_can('edit_post')) return;
+
+        // Loop through our valid fields and save them
+        foreach ($this->fields as $field) {
+            update_post_meta($post_id, $field, esc_attr($_POST[$field]));
+        }
+    }
+
+    /** Build the meta box displayed on the page editor
+     * @param $post
+     */
+    public function meta_box_template($post)
+    {
+        global $post;
+        wp_nonce_field('my_meta_box_nonce', 'ec_meta_box_nonce');
+        $zones = array();
+        foreach (timezone_identifiers_list() as $zone) {
+            $zones[] = $zone;
+        }
+        $values = $this->get_values($post->ID);
+        $this->assign('values', $values);
+        $this->assign('zones', $zones);
+        $this->display('meta-box');
+    }
+
+    /** Logic used to figure out the next date based on options set
+     * @param $val
+     * @return array
+     */
+    private function checkSchedule($val)
+    {
+        date_default_timezone_set(($val['sc_time_zone'] == '' ? 'America/Chicago' : $val['sc_time_zone']));
+        $startTime = strtotime($val['ec_start_on']);
+        $dateFound = false;
+        $currentTime = strtotime(date('m/d/Y'));
+        while ($dateFound === false) {
+            for ($day = date('j', $currentTime); $day <= date('t', $currentTime); $day++) {
+                $startingTime = strtotime(date("m/d/Y", $currentTime) . " {$val['ec_start_time_hr']}:{$val['ec_start_time_min']} {$val['ec_start_time_ampm']}");
+                $duration = $val['ec_duration'] * 60;
+                if ($val['ec_duration_type'] == 'hours')
+                    $duration = $duration * 60;
+
+                $endingTime = $startingTime + $duration;
+                if ($endingTime < time() && date('j') == date('j', $currentTime))
+                    $day++;
+
+                $currentTime = strtotime(date('m/' . $day . '/Y', $currentTime));
+                switch ($val['ec_repeat']) {
+                    case 'daily':
+                        $dayDiff = ((($currentTime - $startTime) / 60) / 60) / 24;
+                        if (is_int($dayDiff / $val['ec_repeat_int'])) {
+                            $dateFound = true;
+                            break 3;
+                        }
+                        break;
+                    case 'weekly':
+                        $weekDiff = (((($currentTime - $startTime) / 60) / 60) / 24) / 7;
+                        if (is_int($weekDiff / $val['ec_repeat_int'])) {
+                            $activeDays = array();
+                            $weekMap = array( // maps values from date('l') to values in sc_repeat_on_chk_*
+                                'su' => 0, 'mo' => 1, 'tu' => 2, 'we' => 3, 'th' => 4, 'fr' => 5, 'sa' => 6
+                            );
+                            foreach ($val as $field => $value) {
+                                if (strstr($field, 'ec_repeat_on_check_') && $value != '') {
+                                    $activeDays[] = $weekMap[str_replace('ec_repeat_on_check_', '', $value)];
+                                }
+                            }
+                            if (in_array(date('w', $currentTime), $activeDays)) {
+                                $dateFound = true;
+                                break 3;
+                            }
+                        }
+                        break;
+                    case 'monthly':
+                        $d1 = new DateTime(date('Y-m-d', $startTime));
+                        $d2 = new DateTime(date('Y-m-d', $currentTime));
+                        $monthDiff = $d1->diff($d2)->m + ($d1->diff($d2)->y * 12);
+                        if (is_int($monthDiff / $val['ec_repeat_int'])) {
+                            // check if it is the day of the month or the day of the week ie: 2nd tuesday of month
+                            if ($val['ec_repeat_on'] == 'day_of_month') {
+                                if (date('j', $startTime) == date('j', $currentTime)) {
+                                    $dateFound = true;
+                                    break 3;
+                                }
+                            }
+                            if ($val['ec_repeat_on'] == 'day_of_week') {
+                                if (date('l', $startTime) == date('l', $currentTime)) {
+                                    $dateFound = true;
+                                    break 3;
+                                }
+                            }
+                        }
+                        break;
+                    case 'yearly':
+                        $yearDiff = date('Y', $currentTime) - date('Y', $startTime);
+                        if (is_int($yearDiff / $val['ec_repeat_int'])) {
+                            if (date('md', $startTime) == date('md', $currentTime)) {
+                                $dateFound = true;
+                                break 3;
+                            }
+                        }
+
+                        break;
+                }
+            }
+            // still in the loop, goto next month
+            $currentTime = strtotime('+1 month', $currentTime);
+            if ($currentTime > strtotime('+1 year'))
+                die('Unable to find date, left off at: ' . date('Y-m-d H:i:s', $currentTime));
+        }
+
+        $current = time();
+        $result = array(
+            'current' => $current,
+            'starting' => $startingTime,
+            'ending' => $endingTime,
+            'until' => ($startingTime - $current),
+            'remaining' => ($endingTime - $current)
+        );
+        /**
+         * foreach ($result as $title=>$time) {
+         * if ($title != 'until' && $title != 'remaining') {
+         * echo $title." ".date('m/d/Y H:i:s',$time)."<br>";
+         * } else {
+         * echo $title." ".$time." seconds<br>";
+         * }
+         * }
+         **/
+        return $result;
+    }
+
+    /** Capture the contents of a template in a variable to use when filtering page contents
+     * @param $template
+     * @return string
+     */
+    private function render($template)
+    {
+        foreach ($this->assigned as $__name => $__values) {
+            $$__name = $__values;
+        }
+        ob_start();
+        include_once(plugin_dir_path(__FILE__) . "templates/{$template}.tpl.php");
+        $contents = ob_get_contents();
+        ob_end_clean();
+        $this->assigned = array();
+        return $contents;
+    }
+
+    /** Echo out a template from render
+     * @param $template
+     */
+    private function display($template)
+    {
+        echo $this->render($template);
+    }
+
+    /** Assign variables to be used in the template
+     * @param $name
+     * @param $values
+     */
+    private function assign($name, $values)
+    {
+        $this->assigned[$name] = $values;
+    }
+}
+
+/**
+ *  Initiate class to activate plugin
+ */
+$exc = new ExclusiveContent();
