@@ -1,47 +1,8 @@
 <link rel="stylesheet" href="<?php echo $baseUrl; ?>resources/jquery-ui-datepicker.css">
 <script src="<?php echo $baseUrl; ?>resources/jquery-ui-datepicker.js"></script>
-<script>
-    if (typeof jQuery === 'function') {
-        var $ = jQuery;
-        var names = {
-            'daily': 'days',
-            'weekly': 'weeks',
-            'monthly': 'months',
-            'yearly': 'years'
-        };
-        $(document).ready(function () {
-            $(document).on('change', '#ec_repeat', function () {
-                var repeat = $(this).val();
-                $('.ec_repeat_on').each(function () {
-                    $(this).hide();
-                });
-                $('#repeat_' + repeat).show();
-                $('#repeat_name').html(names[repeat]);
-            });
-            $(document).on('click', '#ec_enable', function () {
-                $('#schedule_box').toggle();
-            });
-            $(".datepicker").datepicker();
-        });
-    } else {
-        alert('jQuery required');
-    }
-</script>
-<style>
-    #schedule_box > p > input[type='text'], #schedule_box > p > select, .floatright {
-        float: right;
-    }
+<link rel="stylesheet" href="<?php echo $baseUrl; ?>resources/meta-box.css">
+<script src="<?php echo $baseUrl; ?>resources/meta-box.js"></script>
 
-    .note {
-        color: #666;
-        display: table;
-        font-size: 85%;
-        font-style: italic;
-        margin-top: -5px;
-        text-align: right;
-        width: 100%;
-    }
-</style>
 <div id="schedule_container">
     <p>
         <input type="checkbox" id="ec_enable" name="ec_enable" value="off" checked hidden style="display: none;"/>
@@ -58,7 +19,7 @@
                 foreach ($opts as $opt) {
                     ?>
                     <option
-                        value="<?php echo $opt; ?>" <?php echo($opt == $values['ec_repeat'] ? 'selected' : ''); ?> ><?php echo $opt; ?></option>
+                        value="<?php echo $opt; ?>" <?php echo($opt == $values['ec_repeat'] ? 'selected' : ''); ?> ><?php echo $this->varform($opt); ?></option>
                 <?php } ?>
             </select>
         </p>
@@ -114,7 +75,7 @@
                     foreach ($opts as $opt) {
                         ?>
                         <option
-                            value="<?php echo $opt; ?>" <?php echo($opt == $values['ec_repeat_on'] ? 'selected' : ''); ?>><?php echo $opt; ?></option>
+                            value="<?php echo $opt; ?>" <?php echo($opt == $values['ec_repeat_on'] ? 'selected' : ''); ?>><?php echo $this->varform($opt); ?></option>
                     <?php } ?>
                 </select>
             </p>

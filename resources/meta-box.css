@@ -1,0 +1,13 @@
+#schedule_box > p > input[type='text'], #schedule_box > p > select, .floatright {
+    float: right;
+}
+
+.note {
+    color: #666;
+    display: table;
+    font-size: 85%;
+    font-style: italic;
+    margin-top: -5px;
+    text-align: right;
+    width: 100%;
+}

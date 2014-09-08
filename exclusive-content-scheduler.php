@@ -26,7 +26,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 class ExclusiveContent
 {
-
     /** Quick Reference array
      * @var array
      */
@@ -122,7 +121,7 @@ class ExclusiveContent
     {
         global $post;
         $values = $this->get_values($post->ID);
-        if ($values['ec_enable'] == 'on') {
+        if ($values['ec_enable'] == 'on' && (trim($values['ec_end_on']) == '' || (trim($values['ec_end_on']) != '' && time() > strtotime($values['ec_end_on'])))) {
             $check = $this->checkSchedule($values);
             $this->assign('check', $check);
             $this->assign('val', $values);
@@ -199,7 +198,7 @@ class ExclusiveContent
         $dateFound = false;
         $currentTime = strtotime(date('m/d/Y'));
         while ($dateFound === false) {
-            for ($day = date('j', $currentTime); $day <= date('t', $currentTime); $day++) {
+            for ($day = date('j', $currentTime); $day <= date('t', strtotime('+1 month', $currentTime)); $day++) {
                 $startingTime = strtotime(date("m/d/Y", $currentTime) . " {$val['ec_start_time_hr']}:{$val['ec_start_time_min']} {$val['ec_start_time_ampm']}");
                 $duration = $val['ec_duration'] * 60;
                 if ($val['ec_duration_type'] == 'hours')
@@ -273,7 +272,12 @@ class ExclusiveContent
             if ($currentTime > strtotime('+1 year'))
                 die('Unable to find date, left off at: ' . date('Y-m-d H:i:s', $currentTime));
         }
+        $startingTime = strtotime(date("m/d/Y", $currentTime) . " {$val['ec_start_time_hr']}:{$val['ec_start_time_min']} {$val['ec_start_time_ampm']}");
+        $duration = $val['ec_duration'] * 60;
+        if ($val['ec_duration_type'] == 'hours')
+            $duration = $duration * 60;
 
+        $endingTime = $startingTime + $duration;
         $current = time();
         $result = array(
             'current' => $current,
@@ -282,15 +286,6 @@ class ExclusiveContent
             'until' => ($startingTime - $current),
             'remaining' => ($endingTime - $current)
         );
-        /**
-         * foreach ($result as $title=>$time) {
-         * if ($title != 'until' && $title != 'remaining') {
-         * echo $title." ".date('m/d/Y H:i:s',$time)."<br>";
-         * } else {
-         * echo $title." ".$time." seconds<br>";
-         * }
-         * }
-         **/
         return $result;
     }
 
@@ -326,6 +321,15 @@ class ExclusiveContent
     private function assign($name, $values)
     {
         $this->assigned[$name] = $values;
+    }
+
+    /** Formats a variable to a normal string
+     * @param $variable
+     * @return string
+     */
+    private function varform($variable)
+    {
+        return ucwords(str_replace(array('_', '-'), ' ', $variable));
     }
 }
 
