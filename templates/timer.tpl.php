@@ -14,7 +14,7 @@
     <?php } ?>
     <div id="ec-timer" class="panel-body text-center"
          data-seconds="<?php echo($check['until'] < 0 && $check['remaining'] > 0 ? $check['remaining'] : $check['until']); ?>">
-        <ul>
+    <ul>
             <li id="days">
                 <div class="unit">0</div>
                 <div class="label">Days</div>

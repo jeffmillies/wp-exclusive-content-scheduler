@@ -121,7 +121,7 @@ class ExclusiveContent
     {
         global $post;
         $values = $this->get_values($post->ID);
-        if ($values['ec_enable'] == 'on' && (trim($values['ec_end_on']) == '' || (trim($values['ec_end_on']) != '' && time() > strtotime($values['ec_end_on'])))) {
+        if ($values['ec_enable'] == 'on' && (trim($values['ec_end_on']) == '' || (trim($values['ec_end_on']) != '' && time() < strtotime($values['ec_end_on'])))) {
             $check = $this->checkSchedule($values);
             $this->assign('check', $check);
             $this->assign('val', $values);
