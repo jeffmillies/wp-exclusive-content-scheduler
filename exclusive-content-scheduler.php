@@ -123,6 +123,16 @@ class ExclusiveContent
         $values = $this->get_values($post->ID);
         if ($values['ec_enable'] == 'on' && (trim($values['ec_end_on']) == '' || (trim($values['ec_end_on']) != '' && time() < strtotime($values['ec_end_on'])))) {
             $check = $this->checkSchedule($values);
+            if (trim($values['ec_end_on']) != '' && strtotime($check['starting']) > strtotime($values['ec_end_on'])) {
+                $start = strtotime($values['ec_end_on']);
+                $check = array(
+                    'current' => $check['current'],
+                    'starting' => $start,
+                    'ending' => $start + 1,
+                    'until' => ($start - $check['current']),
+                    'remaining' => ($start + 1 - $check['current'])
+                );
+            }
             $this->assign('check', $check);
             $this->assign('val', $values);
             $template = $this->render('timer');
@@ -196,6 +206,7 @@ class ExclusiveContent
         date_default_timezone_set(($val['sc_time_zone'] == '' ? 'America/Chicago' : $val['sc_time_zone']));
         $startTime = strtotime($val['ec_start_on']);
         $dateFound = false;
+        $startCountWeeks = 0;
         $currentTime = strtotime(date('m/d/Y'));
         while ($dateFound === false) {
             for ($day = date('j', $currentTime); $day <= date('t', strtotime('+1 month', $currentTime)); $day++) {
@@ -236,9 +247,12 @@ class ExclusiveContent
                         }
                         break;
                     case 'monthly':
-                        $d1 = new DateTime(date('Y-m-d', $startTime));
-                        $d2 = new DateTime(date('Y-m-d', $currentTime));
+                        $d1 = new DateTime(date('Y-m-01', $startTime));
+                        $d2 = new DateTime(date('Y-m-01', $currentTime));
                         $monthDiff = $d1->diff($d2)->m + ($d1->diff($d2)->y * 12);
+                        if (date('m', $startTime) == date('m', $currentTime) && $currentTime > $startTime)
+                            continue;
+
                         if (is_int($monthDiff / $val['ec_repeat_int'])) {
                             // check if it is the day of the month or the day of the week ie: 2nd tuesday of month
                             if ($val['ec_repeat_on'] == 'day_of_month') {
@@ -248,7 +262,26 @@ class ExclusiveContent
                                 }
                             }
                             if ($val['ec_repeat_on'] == 'day_of_week') {
-                                if (date('l', $startTime) == date('l', $currentTime)) {
+                                if ($startCountWeeks == 0) {
+                                    for ($i = 1; $i <= date('t', $startTime); $i++) {
+                                        if (date('l', $startTime) == date('l', strtotime(date('Y-m', $startTime) . '-' . str_pad($i, 2, '0', STR_PAD_LEFT)))) {
+                                            $startCountWeeks++;
+                                        }
+                                        if (date('Y-m-d', $startTime) == date('Y-m', $startTime) . '-' . str_pad($i, 1, '0', STR_PAD_LEFT)) {
+                                            break;
+                                        }
+                                    }
+                                }
+                                $currentCountWeeks = 0;
+                                for ($i = 1; $i <= date('t', $currentTime); $i++) {
+                                    if (date('l', $currentTime) == date('l', strtotime(date('Y-m', $currentTime) . '-' . str_pad($i, 2, '0', STR_PAD_LEFT)))) {
+                                        $currentCountWeeks++;
+                                    }
+                                    if (date('Y-m-d', $currentTime) == date('Y-m', $currentTime) . '-' . str_pad($i, 2, '0', STR_PAD_LEFT)) {
+                                        break;
+                                    }
+                                }
+                                if (date('l', $startTime) == date('l', $currentTime) && $startCountWeeks == $currentCountWeeks) {
                                     $dateFound = true;
                                     break 3;
                                 }
@@ -267,8 +300,7 @@ class ExclusiveContent
                         break;
                 }
             }
-            // still in the loop, goto next month
-            $currentTime = strtotime('+1 month', $currentTime);
+
             if ($currentTime > strtotime('+1 year'))
                 die('Unable to find date, left off at: ' . date('Y-m-d H:i:s', $currentTime));
         }
