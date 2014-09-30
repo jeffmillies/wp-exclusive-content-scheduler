@@ -79,6 +79,7 @@ class ExclusiveContent
         $this->assign('unitNames', $this->unitNames);
         $this->assign('baseDir', plugin_dir_path(__FILE__));
         $this->assign('baseUrl', plugins_url() . '/exclusive-content-scheduler/');
+
     }
 
     /** Initiate filter hooks that are going to be used
@@ -96,6 +97,36 @@ class ExclusiveContent
     {
         add_action('add_meta_boxes', array($this, 'meta_box'));
         add_action('save_post', array($this, 'save_post'));
+        add_action('admin_menu', array($this, 'add_admin_menus'));
+        add_action('admin_init', array($this, 'register_settings'));
+    }
+
+    public function register_settings()
+    {
+        $options = array();
+        $basic = array('ec_settings_css', 'ec_settings_template');
+        foreach ($basic as $setting) {
+            register_setting('ec-basic-settings', $setting);
+            $value = esc_attr(get_option($setting));
+            if (!$value || $value == '') {
+                $value = $this->render($setting);
+            }
+            $options[$setting] = $value;
+        }
+        $this->assign('options', $options);
+    }
+
+    public function get_options_for_display()
+    {
+        $basic = array('ec_settings_css', 'ec_settings_template');
+        foreach ($basic as $setting) {
+            $value = get_option($setting);
+            if (!$value || $value == '') {
+                $value = $this->render($setting);
+            }
+            $options[$setting] = $value;
+        }
+        $this->assign('options', $options);
     }
 
     /** Making the values easier to use
@@ -120,6 +151,7 @@ class ExclusiveContent
     public function filter_content($content)
     {
         global $post;
+        $this->get_options_for_display();
         $values = $this->get_values($post->ID);
         if ($values['ec_enable'] == 'on' && (trim($values['ec_end_on']) == '' || (trim($values['ec_end_on']) != '' && time() < strtotime($values['ec_end_on'])))) {
             $check = $this->checkSchedule($values);
@@ -136,6 +168,7 @@ class ExclusiveContent
             $this->assign('check', $check);
             $this->assign('val', $values);
             $template = $this->render('timer');
+
             if ($check['until'] < 0 && $check['remaining'] > 0 || $check['show_post']) {
                 $content = $template . $content;
             } else {
@@ -158,6 +191,12 @@ class ExclusiveContent
             'side',
             'low'
         );
+    }
+
+    public function add_admin_menus()
+    {
+        add_options_page('Exclusive Content Settings', 'Exclusive Content', 'manage_options', 'exclusive_content_options', array($this, 'plugin_options_page'));
+
     }
 
     /** Save the content from the meta box when posting the save form.
@@ -195,6 +234,11 @@ class ExclusiveContent
         $this->assign('values', $values);
         $this->assign('zones', $zones);
         $this->display('meta-box');
+    }
+
+    public function plugin_options_page()
+    {
+        $this->display('options');
     }
 
     /** Logic used to figure out the next date based on options set

@@ -9,15 +9,14 @@ if (typeof jQuery === 'function') {
         var minutes = Math.floor(delta / 60) % 60;
         delta -= minutes * 60;
         var seconds = delta % 60;
-        $('#days .unit').html((days < 10 ? '0' + days : days));
-        $('#hours .unit').html((hours < 10 ? '0' + hours : hours));
-        $('#minutes .unit').html((minutes < 10 ? '0' + minutes : minutes));
-        $('#seconds .unit').html((seconds < 10 ? '0' + seconds : seconds));
+        $('#unit-day').html((days < 10 ? '0' + days : days));
+        $('#unit-hour').html((hours < 10 ? '0' + hours : hours));
+        $('#unit-minute').html((minutes < 10 ? '0' + minutes : minutes));
+        $('#unit-second').html((seconds < 10 ? '0' + seconds : seconds));
     }
 
     $(document).ready(function () {
-        var timerContainer = $('#ec-timer');
-        var totalSeconds = timerContainer.attr('data-seconds');
+        var totalSeconds = $('#exclusive-content-timer').attr('data-seconds');
         updateCountDown(totalSeconds);
 
         var timer = setInterval(function () {
