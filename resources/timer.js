@@ -21,7 +21,7 @@ if (typeof jQuery === 'function') {
 
         var timer = setInterval(function () {
             if (totalSeconds <= 0) {
-                //location.reload();
+                location.reload();
             }
             updateCountDown(totalSeconds);
             totalSeconds--;

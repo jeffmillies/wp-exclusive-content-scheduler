@@ -117,7 +117,7 @@
                     ?>
                     <option
                         value="<?php echo sprintf('%02d', $opt); ?>" <?php echo($opt == $values['ec_start_time_min'] ? 'selected' : ''); ?>>
-                        : <?php echo sprintf('%02d', $opt); ?></option>
+                    : <?php echo sprintf('%02d', $opt); ?></option>
                 <?php } ?>
             </select>
             <select name="ec_start_time_hr" id="ec_start_time_hr">

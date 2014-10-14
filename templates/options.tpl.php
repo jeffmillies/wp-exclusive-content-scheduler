@@ -15,6 +15,7 @@
             <div style="margin-left: 15px">
                 ##title##
                 <br>##date##
+                <br>##content##
                 <br>
                 <br>
             </div>

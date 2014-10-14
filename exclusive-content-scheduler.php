@@ -78,7 +78,7 @@ class ExclusiveContent
         $this->add_actions();
         $this->assign('unitNames', $this->unitNames);
         $this->assign('baseDir', plugin_dir_path(__FILE__));
-        $this->assign('baseUrl', plugins_url() . '/exclusive-content-scheduler/');
+        $this->assign('baseUrl', plugin_dir_url(__FILE__));
 
     }
 
@@ -170,9 +170,13 @@ class ExclusiveContent
             $template = $this->render('timer');
 
             if ($check['until'] < 0 && $check['remaining'] > 0 || $check['show_post']) {
-                $content = $template . $content;
+                if (strstr($template, '##content##')) {
+                    $content = str_replace('##content##', $content, $template);
+                } else {
+                    $content = $template . $content;
+                }
             } else {
-                $content = $template;
+                $content = str_replace('##content##', '', $template);
             }
         }
         return $content;
@@ -241,6 +245,13 @@ class ExclusiveContent
         $this->display('options');
     }
 
+    private function pre($info)
+    {
+        echo '<pre>';
+        print_r($info);
+        echo '</pre>';
+    }
+
     /** Logic used to figure out the next date based on options set
      * @param $val
      * @return array
@@ -253,7 +264,7 @@ class ExclusiveContent
         $startCountWeeks = 0;
         $currentTime = strtotime(date('m/d/Y'));
         while ($dateFound === false) {
-            for ($day = date('j', $currentTime); $day <= date('t', strtotime('+1 month', $currentTime)); $day++) {
+            for ($day = date('j', $currentTime); $day <= date('t', $currentTime); $day++) {
                 $startingTime = strtotime(date("m/d/Y", $currentTime) . " {$val['ec_start_time_hr']}:{$val['ec_start_time_min']} {$val['ec_start_time_ampm']}");
                 $duration = $val['ec_duration'] * 60;
                 if ($val['ec_duration_type'] == 'hours')
@@ -273,15 +284,15 @@ class ExclusiveContent
                         }
                         break;
                     case 'weekly':
-                        $weekDiff = (((($currentTime - $startTime) / 60) / 60) / 24) / 7;
-                        if (is_int($weekDiff / $val['ec_repeat_int'])) {
+                        $weekDiff = (int)floor((((($currentTime - $startTime) / 60) / 60) / 24) / 7);
+                        if (is_int($weekDiff / (int)$val['ec_repeat_int'])) {
                             $activeDays = array();
                             $weekMap = array( // maps values from date('l') to values in sc_repeat_on_chk_*
                                 'su' => 0, 'mo' => 1, 'tu' => 2, 'we' => 3, 'th' => 4, 'fr' => 5, 'sa' => 6
                             );
                             foreach ($val as $field => $value) {
-                                if (strstr($field, 'ec_repeat_on_check_') && $value != '') {
-                                    $activeDays[] = $weekMap[str_replace('ec_repeat_on_check_', '', $value)];
+                                if (strstr($field, 'ec_repeat_on_chk_') && $value == 'on') {
+                                    $activeDays[] = $weekMap[str_replace('ec_repeat_on_chk_', '', $field)];
                                 }
                             }
                             if (in_array(date('w', $currentTime), $activeDays)) {
@@ -311,7 +322,7 @@ class ExclusiveContent
                                         if (date('l', $startTime) == date('l', strtotime(date('Y-m', $startTime) . '-' . str_pad($i, 2, '0', STR_PAD_LEFT)))) {
                                             $startCountWeeks++;
                                         }
-                                        if (date('Y-m-d', $startTime) == date('Y-m', $startTime) . '-' . str_pad($i, 1, '0', STR_PAD_LEFT)) {
+                                        if (date('Y-m-d', $startTime) == date('Y-m', $startTime) . '-' . str_pad($i, 2, '0', STR_PAD_LEFT)) {
                                             break;
                                         }
                                     }
@@ -344,10 +355,13 @@ class ExclusiveContent
                         break;
                 }
             }
+            $currentTime = strtotime(date('m/01/Y', $currentTime) . '+1 Month');
+            $day = 1;
 
             if ($currentTime > strtotime('+1 year'))
                 die('Unable to find date, left off at: ' . date('Y-m-d H:i:s', $currentTime));
         }
+
         $startingTime = strtotime(date("m/d/Y", $currentTime) . " {$val['ec_start_time_hr']}:{$val['ec_start_time_min']} {$val['ec_start_time_ampm']}");
         $duration = $val['ec_duration'] * 60;
         if ($val['ec_duration_type'] == 'hours')
