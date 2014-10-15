@@ -16,12 +16,19 @@ if (typeof jQuery === 'function') {
     }
 
     $(document).ready(function () {
-        var totalSeconds = $('#exclusive-content-timer').attr('data-seconds');
+        var container = $('#exclusive-content-timer');
+        var totalSeconds = container.attr('data-seconds');
+        var type = container.attr('data-type');
         updateCountDown(totalSeconds);
 
         var timer = setInterval(function () {
             if (totalSeconds <= 0) {
-                location.reload();
+                if (type == "running") {
+                    $('#ec_content').html($('#ec_after_content').html());
+                    clearInterval(timer);
+                } else {
+                    location.reload();
+                }
             }
             updateCountDown(totalSeconds);
             totalSeconds--;

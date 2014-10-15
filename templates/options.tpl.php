@@ -15,7 +15,8 @@
             <div style="margin-left: 15px">
                 ##title##
                 <br>##date##
-                <br>##content##
+                <br>##content## <span
+                    style="color:red">* requires to be inside a container with an id="ec_content"</span>
                 <br>
                 <br>
             </div>
@@ -37,7 +38,30 @@
         <textarea id="ec_settings_css" name="ec_settings_css"
                   style="width: 65%; height: 300px;"><? echo $options['ec_settings_css']; ?></textarea><br><br>
 
-        <div class="help"></div>
+        <div style="clear: both;"></div>
+        <br><br>
+
+        <label for="ec_settings_content_waiting"><b>Content While Waiting</b></label><br>
+        Title: <input type="text" id="ec_settings_title_waiting" name="ec_settings_title_waiting"
+                      value="<? echo $options['ec_settings_title_waiting']; ?>"><br>
+        <textarea id="ec_settings_content_waiting" name="ec_settings_content_waiting"
+                  style="width: 65%; height: 75px;"><? echo $options['ec_settings_content_waiting']; ?></textarea><br><br>
+
+        <div class="help">Content for when the page is waiting to start.</div>
+        <div style="clear: both;"></div>
+        <br><br>
+
+        <label for="ec_settings_title_running"><b>Title While Running</b></label><br>
+        Title: <input type="text" id="ec_settings_title_running" name="ec_settings_title_running"
+                      value="<? echo $options['ec_settings_title_running']; ?>"><br>
+
+        <div style="clear: both;"></div>
+        <br><br>
+        <label for="ec_settings_content_after"><b>Content After Watching</b></label><br>
+        <textarea id="ec_settings_content_after" name="ec_settings_content_after"
+                  style="width: 65%; height: 75px;"><? echo $options['ec_settings_content_after']; ?></textarea><br><br>
+
+        <div class="help">Content for when the timer for the page duration is completed.</div>
 
         <?php submit_button(); ?>
     </form>

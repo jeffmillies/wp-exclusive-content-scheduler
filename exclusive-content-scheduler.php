@@ -64,6 +64,15 @@ class ExclusiveContent
         'ec_meta_box_nonce'
     );
 
+    private $basic = array(
+        'ec_settings_css',
+        'ec_settings_template',
+        'ec_settings_content_waiting',
+        'ec_settings_content_after',
+        'ec_settings_title_running',
+        'ec_settings_title_waiting'
+    );
+
     /** Holder for assigned variables for templates
      * @var
      */
@@ -79,7 +88,6 @@ class ExclusiveContent
         $this->assign('unitNames', $this->unitNames);
         $this->assign('baseDir', plugin_dir_path(__FILE__));
         $this->assign('baseUrl', plugin_dir_url(__FILE__));
-
     }
 
     /** Initiate filter hooks that are going to be used
@@ -104,8 +112,7 @@ class ExclusiveContent
     public function register_settings()
     {
         $options = array();
-        $basic = array('ec_settings_css', 'ec_settings_template');
-        foreach ($basic as $setting) {
+        foreach ($this->basic as $setting) {
             register_setting('ec-basic-settings', $setting);
             $value = esc_attr(get_option($setting));
             if (!$value || $value == '') {
@@ -113,19 +120,20 @@ class ExclusiveContent
             }
             $options[$setting] = $value;
         }
+        $this->options = $options;
         $this->assign('options', $options);
     }
 
     public function get_options_for_display()
     {
-        $basic = array('ec_settings_css', 'ec_settings_template');
-        foreach ($basic as $setting) {
+        foreach ($this->basic as $setting) {
             $value = get_option($setting);
             if (!$value || $value == '') {
                 $value = $this->render($setting);
             }
             $options[$setting] = $value;
         }
+        $this->options = $options;
         $this->assign('options', $options);
     }
 
@@ -153,6 +161,7 @@ class ExclusiveContent
         global $post;
         $this->get_options_for_display();
         $values = $this->get_values($post->ID);
+        $this->assign('baseUrl', plugin_dir_url(__FILE__));
         if ($values['ec_enable'] == 'on' && (trim($values['ec_end_on']) == '' || (trim($values['ec_end_on']) != '' && time() < strtotime($values['ec_end_on'])))) {
             $check = $this->checkSchedule($values);
             if (trim($values['ec_end_on']) != '' && strtotime($check['starting']) > strtotime($values['ec_end_on'])) {
@@ -176,7 +185,7 @@ class ExclusiveContent
                     $content = $template . $content;
                 }
             } else {
-                $content = str_replace('##content##', '', $template);
+                $content = str_replace('##content##', $this->options['ec_settings_content_waiting'], $template);
             }
         }
         return $content;
@@ -229,6 +238,7 @@ class ExclusiveContent
     public function meta_box_template($post)
     {
         global $post;
+        $this->assign('baseUrl', plugin_dir_url(__FILE__));
         wp_nonce_field('my_meta_box_nonce', 'ec_meta_box_nonce');
         $zones = array();
         foreach (timezone_identifiers_list() as $zone) {
@@ -242,6 +252,7 @@ class ExclusiveContent
 
     public function plugin_options_page()
     {
+        $this->assign('baseUrl', plugin_dir_url(__FILE__));
         $this->display('options');
     }
 
@@ -360,6 +371,7 @@ class ExclusiveContent
 
             if ($currentTime > strtotime('+1 year'))
                 die('Unable to find date, left off at: ' . date('Y-m-d H:i:s', $currentTime));
+
         }
 
         $startingTime = strtotime(date("m/d/Y", $currentTime) . " {$val['ec_start_time_hr']}:{$val['ec_start_time_min']} {$val['ec_start_time_ampm']}");
